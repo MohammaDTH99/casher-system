@@ -1,0 +1,959 @@
+#include <iostream>
+#include <vector>
+#include <string>
+#include <iomanip>
+#include <ctime>
+#include <fstream>
+#include <map>
+#include <algorithm>
+#include <limits>
+
+using namespace std;
+
+// Utility function to validate numeric input
+template<typename T>
+T getValidInput(const string& prompt) {
+    T value;
+    bool valid = false;
+    
+    do {
+        cout << prompt;
+        if (cin >> value) {
+            valid = true;
+        } else {
+            cout << "Invalid input. Please try again.\n";
+            cin.clear();
+            cin.ignore(numeric_limits<streamsize>::max(), '\n');
+        }
+    } while (!valid);
+    
+    return value;
+}
+
+// Product class to store product information
+class Product {
+private:
+    int id;
+    string name;
+    double price;
+    int stock;
+    string category;
+
+public:
+    Product(int _id, string _name, double _price, int _stock, string _category)
+        : id(_id), name(_name), price(_price), stock(_stock), category(_category) {}
+
+    int getId() const { return id; }
+    string getName() const { return name; }
+    double getPrice() const { return price; }
+    int getStock() const { return stock; }
+    string getCategory() const { return category; }
+
+    void setPrice(double _price) { price = _price; }
+    void setStock(int _stock) { stock = _stock; }
+    void addStock(int quantity) { stock += quantity; }
+    bool reduceStock(int quantity) {
+        if (stock >= quantity) {
+            stock -= quantity;
+            return true;
+        }
+        return false;
+    }
+
+    void display() const {
+        cout << setw(5) << id 
+             << setw(20) << name 
+             << setw(10) << fixed << setprecision(2) << price 
+             << setw(10) << stock 
+             << setw(15) << category << endl;
+    }
+};
+
+// Item class for shopping cart
+class CartItem {
+private:
+    Product product;
+    int quantity;
+
+public:
+    CartItem(Product _product, int _quantity)
+        : product(_product), quantity(_quantity) {}
+
+    Product getProduct() const { return product; }
+    int getQuantity() const { return quantity; }
+    double getTotal() const { return product.getPrice() * quantity; }
+    
+    void increaseQuantity(int qty = 1) { quantity += qty; }
+    void decreaseQuantity(int qty = 1) { 
+        quantity = max(0, quantity - qty);
+    }
+    void setQuantity(int qty) { quantity = max(0, qty); }
+};
+
+// Invoice class
+class Invoice {
+private:
+    int invoiceId;
+    time_t datetime;
+    vector<CartItem> items;
+    double totalAmount;
+    double paidAmount;
+    string customerName;
+    string paymentMethod;
+
+public:
+    Invoice(int _id, const vector<CartItem>& _items, double _paid, string _customer, string _payment)
+        : invoiceId(_id), items(_items), paidAmount(_paid), customerName(_customer), paymentMethod(_payment) {
+        datetime = time(nullptr);
+        calculateTotal();
+    }
+
+    void calculateTotal() {
+        totalAmount = 0;
+        for (const auto& item : items) {
+            totalAmount += item.getTotal();
+        }
+    }
+
+    int getInvoiceId() const { return invoiceId; }
+    double getTotal() const { return totalAmount; }
+    double getPaidAmount() const { return paidAmount; }
+    double getChange() const { return paidAmount - totalAmount; }
+    string getCustomerName() const { return customerName; }
+    string getPaymentMethod() const { return paymentMethod; }
+    time_t getDateTime() const { return datetime; }
+    vector<CartItem> getItems() const { return items; }
+    
+    void printInvoice() const {
+        cout << "\n========== INVOICE #" << invoiceId << " ==========\n";
+        cout << "Date: " << ctime(&datetime);
+        cout << "Customer: " << customerName << endl;
+        cout << "Payment Method: " << paymentMethod << endl << endl;
+        
+        cout << setw(20) << left << "Product"
+             << setw(10) << right << "Price"
+             << setw(10) << "Quantity"
+             << setw(15) << "Total" << endl;
+        cout << string(55, '-') << endl;
+        
+        for (const auto& item : items) {
+            cout << setw(20) << left << item.getProduct().getName()
+                 << setw(10) << right << fixed << setprecision(2) << item.getProduct().getPrice()
+                 << setw(10) << item.getQuantity()
+                 << setw(15) << item.getTotal() << endl;
+        }
+        
+        cout << string(55, '-') << endl;
+        cout << setw(40) << right << "Subtotal: " 
+             << setw(15) << fixed << setprecision(2) << totalAmount << endl;
+        cout << setw(40) << right << "Paid Amount: " 
+             << setw(15) << fixed << setprecision(2) << paidAmount << endl;
+        cout << setw(40) << right << "Change: " 
+             << setw(15) << fixed << setprecision(2) << getChange() << endl;
+        cout << "\nThank you for your purchase!\n";
+        cout << "==============================\n";
+    }
+    
+    bool saveToFile() const {
+        string filename = "invoice_" + to_string(invoiceId) + ".txt";
+        ofstream file(filename);
+        if (!file.is_open()) {
+            cout << "Error: Could not create file " << filename << endl;
+            return false;
+        }
+        
+        file << "========== INVOICE #" << invoiceId << " ==========\n";
+        file << "Date: " << ctime(&datetime);
+        file << "Customer: " << customerName << endl;
+        file << "Payment Method: " << paymentMethod << endl << endl;
+        
+        file << setw(20) << left << "Product"
+             << setw(10) << right << "Price"
+             << setw(10) << "Quantity"
+             << setw(15) << "Total" << endl;
+        file << string(55, '-') << endl;
+        
+        for (const auto& item : items) {
+            file << setw(20) << left << item.getProduct().getName()
+                 << setw(10) << right << fixed << setprecision(2) << item.getProduct().getPrice()
+                 << setw(10) << item.getQuantity()
+                 << setw(15) << item.getTotal() << endl;
+        }
+        
+        file << string(55, '-') << endl;
+        file << setw(40) << right << "Subtotal: " 
+             << setw(15) << fixed << setprecision(2) << totalAmount << endl;
+        file << setw(40) << right << "Paid Amount: " 
+             << setw(15) << fixed << setprecision(2) << paidAmount << endl;
+        file << setw(40) << right << "Change: " 
+             << setw(15) << fixed << setprecision(2) << getChange() << endl;
+        file << "\nThank you for your purchase!\n";
+        file << "==============================\n";
+        file.close();
+        
+        cout << "Invoice saved to file: " << filename << endl;
+        return true;
+    }
+};
+
+// Inventory management class
+class Inventory {
+private:
+    vector<Product> products;
+    int nextProductId;
+
+    // Helper to find a product's index by ID
+    int findProductIndexById(int id) const {
+        for (size_t i = 0; i < products.size(); i++) {
+            if (products[i].getId() == id) {
+                return static_cast<int>(i);
+            }
+        }
+        return -1;
+    }
+
+public:
+    Inventory() : nextProductId(1) {
+        // Add some sample products
+        addProduct("Bread", 1.99, 50, "Bakery");
+        addProduct("Milk", 2.49, 30, "Dairy");
+        addProduct("Eggs", 3.99, 40, "Dairy");
+        addProduct("Rice", 5.99, 25, "Grains");
+        addProduct("Chicken", 8.99, 15, "Meat");
+    }
+
+    bool addProduct(string name, double price, int stock, string category) {
+        if (name.empty() || price <= 0 || stock < 0 || category.empty()) {
+            return false;
+        }
+        products.push_back(Product(nextProductId++, name, price, stock, category));
+        return true;
+    }
+
+    void displayAllProducts() const {
+        if (products.empty()) {
+            cout << "\nNo products in inventory.\n";
+            return;
+        }
+        
+        cout << "\n---------- Product Inventory ----------\n";
+        cout << setw(5) << "ID" 
+             << setw(20) << "Name" 
+             << setw(10) << "Price" 
+             << setw(10) << "Stock" 
+             << setw(15) << "Category" << endl;
+        cout << string(60, '-') << endl;
+        
+        for (const auto& product : products) {
+            product.display();
+        }
+        cout << string(60, '-') << endl;
+    }
+
+    Product* findProductById(int id) {
+        int index = findProductIndexById(id);
+        if (index >= 0) {
+            return &products[index];
+        }
+        return nullptr;
+    }
+
+    bool updateProductPrice(int id, double newPrice) {
+        if (newPrice <= 0) {
+            cout << "Error: Price must be greater than zero.\n";
+            return false;
+        }
+        
+        Product* product = findProductById(id);
+        if (product) {
+            product->setPrice(newPrice);
+            cout << "Price updated successfully.\n";
+            return true;
+        } else {
+            cout << "Product not found.\n";
+            return false;
+        }
+    }
+
+    bool updateProductStock(int id, int newStock) {
+        if (newStock < 0) {
+            cout << "Error: Stock cannot be negative.\n";
+            return false;
+        }
+        
+        Product* product = findProductById(id);
+        if (product) {
+            product->setStock(newStock);
+            cout << "Stock updated successfully.\n";
+            return true;
+        } else {
+            cout << "Product not found.\n";
+            return false;
+        }
+    }
+
+    vector<Product> searchByName(const string& keyword) const {
+        vector<Product> results;
+        if (keyword.empty()) {
+            return results;
+        }
+        
+        for (const auto& product : products) {
+            string name = product.getName();
+            transform(name.begin(), name.end(), name.begin(), ::tolower);
+            string key = keyword;
+            transform(key.begin(), key.end(), key.begin(), ::tolower);
+            
+            if (name.find(key) != string::npos) {
+                results.push_back(product);
+            }
+        }
+        return results;
+    }
+
+    vector<Product> searchByCategory(const string& category) const {
+        vector<Product> results;
+        if (category.empty()) {
+            return results;
+        }
+        
+        for (const auto& product : products) {
+            string prodCategory = product.getCategory();
+            string searchCategory = category;
+            
+            // Case-insensitive comparison
+            transform(prodCategory.begin(), prodCategory.end(), prodCategory.begin(), ::tolower);
+            transform(searchCategory.begin(), searchCategory.end(), searchCategory.begin(), ::tolower);
+            
+            if (prodCategory.find(searchCategory) != string::npos) {
+                results.push_back(product);
+            }
+        }
+        return results;
+    }
+    
+    vector<string> getAllCategories() const {
+        vector<string> categories;
+        map<string, bool> categoryMap;
+        
+        for (const auto& product : products) {
+            categoryMap[product.getCategory()] = true;
+        }
+        
+        for (const auto& pair : categoryMap) {
+            categories.push_back(pair.first);
+        }
+        
+        return categories;
+    }
+
+    vector<Product> getProducts() const {
+        return products;
+    }
+    
+    int getProductCount() const {
+        return products.size();
+    }
+};
+
+// Cart class for handling shopping operations
+class ShoppingCart {
+private:
+    vector<CartItem> items;
+    
+public:
+    void addItem(const Product& product, int quantity) {
+        // Check if product already exists in cart
+        for (auto& item : items) {
+            if (item.getProduct().getId() == product.getId()) {
+                item.increaseQuantity(quantity);
+                return;
+            }
+        }
+        
+        // If not found, add new item
+        items.push_back(CartItem(product, quantity));
+    }
+    
+    bool removeItem(int productId) {
+        auto it = find_if(items.begin(), items.end(), 
+            [productId](const CartItem& item) {
+                return item.getProduct().getId() == productId;
+            });
+            
+        if (it != items.end()) {
+            items.erase(it);
+            cout << "Item removed from cart.\n";
+            return true;
+        } else {
+            cout << "Item not found in cart.\n";
+            return false;
+        }
+    }
+    
+    bool updateQuantity(int productId, int newQuantity) {
+        if (newQuantity < 0) {
+            cout << "Error: Quantity cannot be negative.\n";
+            return false;
+        }
+        
+        for (auto& item : items) {
+            if (item.getProduct().getId() == productId) {
+                if (newQuantity == 0) {
+                    return removeItem(productId);
+                } else {
+                    item.setQuantity(newQuantity);
+                    cout << "Quantity updated successfully.\n";
+                    return true;
+                }
+            }
+        }
+        cout << "Item not found in cart.\n";
+        return false;
+    }
+    
+    void clearCart() {
+        items.clear();
+        cout << "Cart cleared.\n";
+    }
+    
+    void displayCart() const {
+        if (items.empty()) {
+            cout << "Your cart is empty.\n";
+            return;
+        }
+        
+        cout << "\n---------- Shopping Cart ----------\n";
+        cout << setw(5) << "ID" 
+             << setw(20) << "Name" 
+             << setw(10) << "Price" 
+             << setw(10) << "Quantity" 
+             << setw(15) << "Total" << endl;
+        cout << string(60, '-') << endl;
+        
+        double total = 0;
+        for (const auto& item : items) {
+            cout << setw(5) << item.getProduct().getId()
+                 << setw(20) << item.getProduct().getName()
+                 << setw(10) << fixed << setprecision(2) << item.getProduct().getPrice()
+                 << setw(10) << item.getQuantity()
+                 << setw(15) << fixed << setprecision(2) << item.getTotal() << endl;
+            total += item.getTotal();
+        }
+        
+        cout << string(60, '-') << endl;
+        cout << setw(45) << right << "Total: " 
+             << setw(15) << fixed << setprecision(2) << total << endl;
+    }
+    
+    double getTotal() const {
+        double total = 0;
+        for (const auto& item : items) {
+            total += item.getTotal();
+        }
+        return total;
+    }
+    
+    bool isEmpty() const {
+        return items.empty();
+    }
+    
+    vector<CartItem> getItems() const {
+        return items;
+    }
+    
+    int getItemCount() const {
+        return items.size();
+    }
+};
+
+// Sales reporting and analytics class
+class SalesAnalytics {
+private:
+    vector<Invoice> invoices;
+    
+public:
+    void addInvoice(const Invoice& invoice) {
+        invoices.push_back(invoice);
+    }
+    
+    double getTotalSales() const {
+        double total = 0;
+        for (const auto& invoice : invoices) {
+            total += invoice.getTotal();
+        }
+        return total;
+    }
+    
+    int getTotalTransactions() const {
+        return invoices.size();
+    }
+    
+    double getAverageTransactionValue() const {
+        if (invoices.empty()) return 0;
+        return getTotalSales() / invoices.size();
+    }
+    
+    map<string, double> getSalesByPaymentMethod() const {
+        map<string, double> salesByMethod;
+        for (const auto& invoice : invoices) {
+            salesByMethod[invoice.getPaymentMethod()] += invoice.getTotal();
+        }
+        return salesByMethod;
+    }
+    
+    void displaySalesSummary() const {
+        if (invoices.empty()) {
+            cout << "No sales data available.\n";
+            return;
+        }
+        
+        cout << "\n===== Sales Summary =====\n";
+        cout << "Total Sales: $" << fixed << setprecision(2) << getTotalSales() << endl;
+        cout << "Total Transactions: " << getTotalTransactions() << endl;
+        cout << "Average Transaction Value: $" << fixed << setprecision(2) << getAverageTransactionValue() << endl;
+        
+        cout << "\nSales by Payment Method:\n";
+        for (const auto& [method, sales] : getSalesByPaymentMethod()) {
+            cout << method << ": $" << fixed << setprecision(2) << sales << endl;
+        }
+    }
+    
+    vector<Invoice> getAllInvoices() const {
+        return invoices;
+    }
+};
+
+// Cashier class
+class Cashier {
+private:
+    Inventory inventory;
+    ShoppingCart cart;
+    SalesAnalytics salesAnalytics;
+    int nextInvoiceId;
+    
+public:
+    Cashier() : nextInvoiceId(1001) {}
+    
+    void displayMainMenu() {
+        int choice;
+        do {
+            cout << "\n===== CASHIER SYSTEM =====\n";
+            cout << "1. View Products\n";
+            cout << "2. Search Products\n";
+            cout << "3. Add to Cart\n";
+            cout << "4. View Cart\n";
+            cout << "5. Update Cart\n";
+            cout << "6. Clear Cart\n";
+            cout << "7. Checkout\n";
+            cout << "8. Inventory Management\n";
+            cout << "9. Sales Analytics\n";
+            cout << "0. Exit\n";
+            cout << "Enter your choice: ";
+            
+            choice = getValidInput<int>("");
+            
+            switch (choice) {
+                case 1:
+                    inventory.displayAllProducts();
+                    break;
+                case 2:
+                    searchProducts();
+                    break;
+                case 3:
+                    addToCart();
+                    break;
+                case 4:
+                    cart.displayCart();
+                    break;
+                case 5:
+                    updateCart();
+                    break;
+                case 6:
+                    cart.clearCart();
+                    break;
+                case 7:
+                    checkout();
+                    break;
+                case 8:
+                    inventoryManagement();
+                    break;
+                case 9:
+                    salesAnalytics.displaySalesSummary();
+                    break;
+                case 0:
+                    cout << "Thank you for using the Cashier System!\n";
+                    break;
+                default:
+                    cout << "Invalid choice. Please try again.\n";
+            }
+        } while (choice != 0);
+    }
+    
+private:
+    void searchProducts() {
+        int choice;
+        cout << "\n----- Search Products -----\n";
+        cout << "1. Search by Name\n";
+        cout << "2. Search by Category\n";
+        cout << "0. Back to Main Menu\n";
+        cout << "Enter your choice: ";
+        
+        choice = getValidInput<int>("");
+        
+        if (choice == 0) return;
+        
+        string keyword;
+        vector<Product> results;
+        
+        switch (choice) {
+            case 1:
+                cout << "Enter product name: ";
+                cin.ignore();
+                getline(cin, keyword);
+                results = inventory.searchByName(keyword);
+                break;
+            case 2:
+                cout << "Enter category: ";
+                cin.ignore();
+                getline(cin, keyword);
+                results = inventory.searchByCategory(keyword);
+                break;
+            default:
+                cout << "Invalid choice.\n";
+                return;
+        }
+        
+        if (results.empty()) {
+            cout << "No products found.\n";
+            return;
+        }
+        
+        cout << "\n----- Search Results -----\n";
+        cout << setw(5) << "ID" 
+             << setw(20) << "Name" 
+             << setw(10) << "Price" 
+             << setw(10) << "Stock" 
+             << setw(15) << "Category" << endl;
+        cout << string(60, '-') << endl;
+        
+        for (const auto& product : results) {
+            product.display();
+        }
+    }
+    
+    void addToCart() {
+        inventory.displayAllProducts();
+        
+        if (inventory.getProductCount() == 0) {
+            cout << "No products available to add to cart.\n";
+            return;
+        }
+        
+        int productId, quantity;
+        cout << "Enter product ID (0 to cancel): ";
+        productId = getValidInput<int>("");
+        
+        if (productId == 0) return;
+        
+        Product* product = inventory.findProductById(productId);
+        if (!product) {
+            cout << "Product not found.\n";
+            return;
+        }
+        
+        cout << "Enter quantity: ";
+        quantity = getValidInput<int>("");
+        
+        if (quantity <= 0) {
+            cout << "Invalid quantity.\n";
+            return;
+        }
+        
+        if (quantity > product->getStock()) {
+            cout << "Not enough stock available. Available: " << product->getStock() << endl;
+            return;
+        }
+        
+        cart.addItem(*product, quantity);
+        cout << "Added to cart: " << product->getName() << " x" << quantity << endl;
+    }
+    
+    void updateCart() {
+        if (cart.isEmpty()) {
+            cout << "Your cart is empty.\n";
+            return;
+        }
+        
+        cart.displayCart();
+        
+        int choice;
+        cout << "\n1. Remove item\n";
+        cout << "2. Update quantity\n";
+        cout << "0. Back\n";
+        cout << "Enter your choice: ";
+        
+        choice = getValidInput<int>("");
+        
+        if (choice == 0) return;
+        
+        int productId;
+        cout << "Enter product ID: ";
+        productId = getValidInput<int>("");
+        
+        switch (choice) {
+            case 1:
+                cart.removeItem(productId);
+                break;
+            case 2:
+                int newQuantity;
+                cout << "Enter new quantity: ";
+                newQuantity = getValidInput<int>("");
+                cart.updateQuantity(productId, newQuantity);
+                break;
+            default:
+                cout << "Invalid choice.\n";
+        }
+    }
+    
+    void checkout() {
+        if (cart.isEmpty()) {
+            cout << "Your cart is empty. Cannot proceed to checkout.\n";
+            return;
+        }
+        
+        cart.displayCart();
+        double total = cart.getTotal();
+        
+        string customerName, paymentMethod;
+        double paidAmount;
+        
+        cout << "\n----- Checkout -----\n";
+        cout << "Enter customer name: ";
+        cin.ignore();
+        getline(cin, customerName);
+        
+        cout << "Select payment method:\n";
+        cout << "1. Cash\n";
+        cout << "2. Credit Card\n";
+        cout << "3. Digital Wallet\n";
+        cout << "0. Cancel\n";
+        int paymentChoice;
+        cout << "Enter choice: ";
+        paymentChoice = getValidInput<int>("");
+        
+        if (paymentChoice == 0) {
+            cout << "Checkout cancelled.\n";
+            return;
+        }
+        
+        switch (paymentChoice) {
+            case 1:
+                paymentMethod = "Cash";
+                cout << "Total amount: " << fixed << setprecision(2) << total << endl;
+                cout << "Enter paid amount: ";
+                paidAmount = getValidInput<double>("");
+                if (paidAmount < total) {
+                    cout << "Insufficient payment.\n";
+                    return;
+                }
+                break;
+            case 2:
+                paymentMethod = "Credit Card";
+                paidAmount = total;
+                cout << "Processing credit card payment...\n";
+                break;
+            case 3:
+                paymentMethod = "Digital Wallet";
+                paidAmount = total;
+                cout << "Processing digital wallet payment...\n";
+                break;
+            default:
+                cout << "Invalid payment choice.\n";
+                return;
+        }
+        
+        // Process stock reduction
+        vector<CartItem> items = cart.getItems();
+        bool stockReductionSuccessful = true;
+        
+        // First check if all items have sufficient stock
+        for (const auto& item : items) {
+            Product* product = inventory.findProductById(item.getProduct().getId());
+            if (!product || product->getStock() < item.getQuantity()) {
+                cout << "Error: Not enough stock for " << item.getProduct().getName() << endl;
+                stockReductionSuccessful = false;
+                break;
+            }
+        }
+        
+        // If all items have sufficient stock, then reduce stock
+        if (stockReductionSuccessful) {
+            for (const auto& item : items) {
+                Product* product = inventory.findProductById(item.getProduct().getId());
+                product->reduceStock(item.getQuantity());
+            }
+            
+            // Create invoice
+            Invoice invoice(nextInvoiceId++, items, paidAmount, customerName, paymentMethod);
+            salesAnalytics.addInvoice(invoice);
+            
+            // Print and save invoice
+            invoice.printInvoice();
+            invoice.saveToFile();
+            
+            // Clear cart after successful checkout
+            cart.clearCart();
+            
+            cout << "Checkout completed successfully.\n";
+        } else {
+            cout << "Checkout failed due to insufficient stock.\n";
+        }
+    }
+    
+    void inventoryManagement() {
+        int choice;
+        do {
+            cout << "\n----- Inventory Management -----\n";
+            cout << "1. View All Products\n";
+            cout << "2. Add New Product\n";
+            cout << "3. Update Product Price\n";
+            cout << "4. Update Product Stock\n";
+            cout << "5. View Categories\n";
+            cout << "0. Back to Main Menu\n";
+            cout << "Enter your choice: ";
+            
+            choice = getValidInput<int>("");
+            
+            switch (choice) {
+                case 1:
+                    inventory.displayAllProducts();
+                    break;
+                case 2:
+                    addNewProduct();
+                    break;
+                case 3:
+                    updateProductPrice();
+                    break;
+                case 4:
+                    updateProductStock();
+                    break;
+                case 5:
+                    displayCategories();
+                    break;
+                case 0:
+                    break;
+                default:
+                    cout << "Invalid choice. Please try again.\n";
+            }
+        } while (choice != 0);
+    }
+    
+    void addNewProduct() {
+        string name, category;
+        double price;
+        int stock;
+        
+        cout << "Enter product name: ";
+        cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Clear the input buffer
+        getline(cin, name);
+        
+        if (name.empty()) {
+            cout << "Error: Product name cannot be empty.\n";
+            return;
+        }
+        
+        cout << "Enter price: ";
+        price = getValidInput<double>("");
+        
+        if (price <= 0) {
+            cout << "Error: Price must be greater than zero.\n";
+            return;
+        }
+        
+        cout << "Enter initial stock: ";
+        stock = getValidInput<int>("");
+        
+        if (stock < 0) {
+            cout << "Error: Stock cannot be negative.\n";
+            return;
+        }
+        
+        cout << "Enter category: ";
+        cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Clear the input buffer
+        getline(cin, category);
+        
+        if (category.empty()) {
+            cout << "Error: Category cannot be empty.\n";
+            return;
+        }
+        
+        if (inventory.addProduct(name, price, stock, category)) {
+            cout << "Product added successfully.\n";
+        } else {
+            cout << "Failed to add product. Please check input values.\n";
+        }
+    }
+    
+    void updateProductPrice() {
+        inventory.displayAllProducts();
+        
+        if (inventory.getProductCount() == 0) {
+            cout << "No products available to update.\n";
+            return;
+        }
+        
+        int id;
+        double newPrice;
+        
+        cout << "Enter product ID to update (0 to cancel): ";
+        id = getValidInput<int>("");
+        
+        if (id == 0) return;
+        
+        cout << "Enter new price: ";
+        newPrice = getValidInput<double>("");
+        
+        inventory.updateProductPrice(id, newPrice);
+    }
+    
+    void updateProductStock() {
+        inventory.displayAllProducts();
+        
+        if (inventory.getProductCount() == 0) {
+            cout << "No products available to update.\n";
+            return;
+        }
+        
+        int id, newStock;
+        
+        cout << "Enter product ID to update (0 to cancel): ";
+        id = getValidInput<int>("");
+        
+        if (id == 0) return;
+        
+        cout << "Enter new stock level: ";
+        newStock = getValidInput<int>("");
+        
+        inventory.updateProductStock(id, newStock);
+    }
+    
+    void displayCategories() {
+        vector<string> categories = inventory.getAllCategories();
+        
+        if (categories.empty()) {
+            cout << "No categories found.\n";
+            return;
+        }
+        
+        cout << "\n----- Product Categories -----\n";
+        for (const auto& category : categories) {
+            cout << category << endl;
+        }
+    }
+};
+int main(){
+    Cashier cashier;
+    cashier.displayMainMenu();
+    return 0;
+}
